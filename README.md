@@ -6,7 +6,7 @@ Everywhere else it is exactly `docker/setup-buildx-action` and the build runs un
 ```yaml
 permissions:
   contents: read
-  id-token: write   # the cache's credentials
+  id-token: write   # lets builds of the default branch save the cache
 
 steps:
   - uses: flamewill/setup-docker-builder@v1
@@ -23,12 +23,13 @@ steps:
 
 ## How it works
 
-- **Every build reads the cache**: unchanged layers are reused instead of rebuilt.
-- **Only builds on the default branch write it** (push, schedule or manual run). A pull request or another branch reads it but can
-  never put a layer into it that a release build would reuse.
-- **It never fails your build**: without a cache (another runner, or no `id-token: write`) both outputs are empty and the build runs
-  as it would without them; a cache that cannot be written is skipped.
-- Layers no build has used for 7 days are dropped.
+- **Every build reads the cache**: it waits on the machine's local disk before the build starts, and unchanged layers are reused
+  instead of rebuilt.
+- **Only builds on the default branch save it** (push, schedule or manual run), after the job, with `permissions: id-token: write`.
+  A pull request or another branch reads it but can never put a layer into it that a release build would reuse.
+- **It never fails your build**: without a cache (another runner) both outputs are empty and the build runs as it would without
+  them; a cache that cannot be saved is skipped.
+- A cache that no default-branch build has saved for 7 days is dropped.
 
 The cache needs BuildKit in a container, the builder this action sets up; its other inputs are `docker/setup-buildx-action`'s
 (`version`, `driver-opts`, `buildkitd-flags`, `buildkitd-config`, `buildkitd-config-inline`, `platforms`, `name`, `cleanup`).

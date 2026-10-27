@@ -4,10 +4,6 @@
 Everywhere else it is exactly `docker/setup-buildx-action` and the build runs uncached.
 
 ```yaml
-permissions:
-  contents: read
-  id-token: write   # lets builds of the default branch save the cache
-
 steps:
   - uses: flamewill/setup-docker-builder@v1
     id: builder
@@ -25,8 +21,9 @@ steps:
 
 - **Every build reads the cache**: it waits on the machine's local disk before the build starts, and unchanged layers are reused
   instead of rebuilt.
-- **Only builds on the default branch save it** (push, schedule or manual run), after the job, with `permissions: id-token: write`.
-  A pull request or another branch reads it but can never put a layer into it that a release build would reuse.
+- **Only builds on the default branch save it** (push, schedule or manual run of the repository itself), after the job. FlameWill
+  decides that from GitHub's own record of the run, so a pull request or another branch reads it but can never put a layer into it
+  that a release build would reuse.
 - **It never fails your build**: without a cache (another runner) both outputs are empty and the build runs as it would without
   them; a cache that cannot be saved is skipped.
 - A cache that no default-branch build has saved for 7 days is dropped.

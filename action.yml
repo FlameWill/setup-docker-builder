@@ -1,0 +1,73 @@
+name: FlameWill Docker builder
+description: docker/setup-buildx-action plus a Docker layer cache on FlameWill runners, for docker/build-push-action's cache-from and cache-to.
+author: FlameWill
+branding:
+  icon: layers
+  color: orange
+
+# The cache inputs are FlameWill's; the rest are docker/setup-buildx-action's (v4.4.1), passed through. The cache needs BuildKit in a
+# container (setup-buildx-action's default driver, docker-container).
+inputs:
+  cache-key:
+    description: Name of this build's layer cache. Builds with the same key share layers; use one key per image you build.
+    default: default
+  version:
+    description: Buildx version, as in docker/setup-buildx-action.
+  driver-opts:
+    description: As in docker/setup-buildx-action.
+  buildkitd-flags:
+    description: As in docker/setup-buildx-action.
+  buildkitd-config:
+    description: As in docker/setup-buildx-action.
+  buildkitd-config-inline:
+    description: As in docker/setup-buildx-action.
+  platforms:
+    description: As in docker/setup-buildx-action.
+  name:
+    description: As in docker/setup-buildx-action.
+  cleanup:
+    description: As in docker/setup-buildx-action.
+    default: true
+
+outputs:
+  cache-from:
+    description: For docker/build-push-action's cache-from. Empty when no cache is available.
+    value: ${{ steps.cache.outputs.cache-from }}
+  cache-to:
+    description: For docker/build-push-action's cache-to. Set only on builds of the default branch, which write the cache; other branches read it.
+    value: ${{ steps.cache.outputs.cache-to }}
+  name:
+    description: The builder's name.
+    value: ${{ steps.buildx.outputs.name }}
+  platforms:
+    description: The builder's platforms.
+    value: ${{ steps.buildx.outputs.platforms }}
+
+runs:
+  using: composite
+  steps:
+    - name: Docker layer cache
+      id: cache
+      shell: bash
+      env:
+        CACHE_KEY: ${{ inputs.cache-key }}
+      run: |
+        if command -v fw-docker-cache >/dev/null 2>&1; then
+          fw-docker-cache "$CACHE_KEY"
+        else
+          printf 'cache-from=\ncache-to=\n' >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Set up Docker Buildx
+      id: buildx
+      uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      with:
+        version: ${{ inputs.version }}
+        driver: docker-container
+        driver-opts: ${{ inputs.driver-opts }}
+        buildkitd-flags: ${{ inputs.buildkitd-flags }}
+        buildkitd-config: ${{ inputs.buildkitd-config }}
+        buildkitd-config-inline: ${{ inputs.buildkitd-config-inline }}
+        platforms: ${{ inputs.platforms }}
+        name: ${{ inputs.name }}
+        cleanup: ${{ inputs.cleanup }}
